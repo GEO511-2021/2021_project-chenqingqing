@@ -46,7 +46,7 @@ As the entitle data set has millions of data points. A random subset (~ # count 
 
 A data set records the inferred home locations of users. The home locations are inferred based on users' footprints by applying the HMLC homelocator algorithm [@chen_identifying_2021]. As the home locations are the foundation for constructing home-to-destination networks, I use the entire data set instead of the subset to infer the home locations. The detailed steps for identifying home locations are not included in this project but the results are directly provided as the data source for the subsequent diversity analysis. The data set is stored under the `data/raw/` folder. 
 
-# Methodology 
+# Methodology  
 
 To operationalize diversity, I apply the concept of biological diversity from ecology [@tramer_bird_1969; @maignan_bio-ecological_2003] and use Shannon's index ($H$) to measure the diversity. The formular of Shannon's index is shown below: 
 
