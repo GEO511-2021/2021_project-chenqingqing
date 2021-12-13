@@ -16,7 +16,7 @@ bibliography: references.bib
 ```{r, message=F, warning=F}
 knitr::opts_chunk$set(echo = TRUE, warning = F, message = F, cache=TRUE, 
                       fig.width = 10, fig.height = 10)
-library(tidyverse)
+# library(tidyverse)
 library(dplyr)
 library(sf)
 library(tmap)
