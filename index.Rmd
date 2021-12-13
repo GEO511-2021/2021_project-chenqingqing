@@ -1,5 +1,5 @@
 ---
-title: "Data Analysis and Visualization"
+title: "Identifying the Changes of Social Diversity in Auckland City under the COVID-19 Impacts"
 author: Qingqing Chen
 date: "Last compiled date: `r format(Sys.time(), '%d %B, %Y')`"
 output:
@@ -7,6 +7,7 @@ output:
     code_folding: show
 editor_options: 
   chunk_output_type: console
+bibliography: references.bib
 ---
 
 # Pre-request
@@ -25,6 +26,7 @@ library(RColorBrewer)
 library(vegan) # diversity analysis
 library(purrr) # parallel mapping 
 library(DT)
+library(vembedr)
 ```
 
 # Data Preparation 
@@ -40,8 +42,8 @@ sf_akl <- read_sf(here("data/raw/auckland-boundary/auckland_boundary.shp"))
 # New Zealand highway centrelines
 highway_centrlines <- read_sf(here("data/raw/nz-state-highway-centrelines-SHP/nz-state-highway-centrelines.shp")) %>% 
   st_transform(crs = 2193) %>% # convert crs to New Zealand
-  st_join(., sf_akl) %>% # spatial join with Auckland boundary
-  filter(!is.na(city_name)) # remove highway centrelines that is not within Auckland city
+  st_intersection(., sf_akl) # spatial join with Auckland boundary
+  
 
 # hexagonal grid cell
 grids <- read_sf(here("data/raw/grids_shp/grids300.shp"), quiet = T) %>% 
@@ -377,73 +379,100 @@ df_divs <- map(file_pathes, function(x) readRDS(x))
 df_divs[[1]] %>% head()
 ```
 
-```{r}
-spatial_viz <- function(df_div, main.title_size = 1, legend.title_size = 0.5,  
-                        legend.text_size = 0.35, legend_width = 0.5){
-  range_biweek <- df_div$date_range %>% unique()
-  tm_shape(sf_akl) +
-      tm_borders(col = "grey") + 
-      tm_shape(highway_centrlines) +
-      tm_lines(col = "grey20", lwd = 2, alpha = 0.7) +
-      tm_shape(df_div) +
-      tm_fill("norm_div",
-              palette = "OrRd",
-              style = "fixed",
-              breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1.0),
-              legend.is.portrait = T,
-              legend.format = list(digits = 2),
-              title = "Norm.Diversity") +
-    tm_layout(main.title = paste0("Period: ", range_biweek),
-              main.title.size = main.title_size,
-              frame = FALSE,
-              legend.frame = F,
-              legend.bg.color = "white",
-              legend.title.size = legend.title_size,
-              legend.text.size = legend.text_size,
-              legend.width = legend_width,
-              legend.position = c("right", "top"))
-}
-
-pics_div <- map(df_divs, function(x) spatial_viz(x))
-```
-
-
-```{r}
-p_map1to9 <- tmap_arrange(pics_div[1:3], nrow = 3, ncol = 3)
-p_map1to9
-```
-
-<!-- ## Expected results -->
-
-<!-- 1. The social diversity does change under the COVID-19 impacts.  -->
-<!-- 2. The diversity around CDB may have a significant change.  -->
-<!-- 3. Neighborhoods with relatively high diversity may have similar character(s) or certain urban functions.  -->
-<!-- 4. The most dense place may not be the most diverse place. -->
 
 
 # Results
 
-<!-- [~200 words] -->
 
-<!-- Tables and figures (maps and other graphics) are carefully planned to convey the results of your analysis. Intense exploration and evidence of many trials and failures. The author looked at the data in many different ways before coming to the final presentation of the data. -->
+## Static visualization 
 
-<!-- Show tables, plots, etc. and describe them. -->
+The violin plot shown below represents the kernel probability density of the diversity at different biweekly periods starting from Feb 26, 2020 (one month before the 1st lockdown) to Sep 23, 2020 (i.e., one month after the 2nd lockdown). The horizontal red dash line refers to the average diversity of all geographical places over the whole period and the two vertical red dash lines refer to the two lockdown mundanes (one at March 25, 2020 and the other on Aug 12, 2020). On the date of the 1st lockdown, New Zealand moved to Alert Level 4 (highest alert level) and the entire nation went into self-isolation. On the date of the 2nd lockdown, Auckland resion moved to Alert Level 3. We can observe that the diversity drops immediate after the two lockdowns, indicating the timely effect of the stringent measures put in place. 
 
-```{r, fig.width=6, fig.height=3, fig.cap="Map of completely random data"}
 
+```{r fig.width=10, fig.height=10}
+df_divs_combined <- do.call(rbind, df_divs)
+# order the date range
+date_range_levels <- unique(df_divs_combined$date_range)
+# only consider periods one month before the lock down until one month after the second lock down 
+df_divs_combined <- df_divs_combined %>% 
+  mutate(date_range = factor(date_range, levels = date_range_levels)) %>% 
+  filter(date_range %in% date_range_levels[5:19]) 
 ```
 
 
-```{r}
-
+```{r fig.width=10, fig.height=6}
+mean_div <- mean(df_divs_combined$norm_div)
+df_labels <- tibble(
+  x = c(3.75, 13.85, 15.3), 
+  y = c(1.03, 1.03, 0.25), 
+  label = c("1st Lockdown", "2nd Lockdown", "Mean")
+)
+df_divs_combined %>% 
+  st_set_geometry(NULL) %>% 
+  ggplot(., aes(x = date_range, y = norm_div)) +
+  geom_violin(width=1, color = "grey20") +
+  geom_boxplot(aes(color = date_range), 
+               width=0.1, alpha=0.2, 
+               outlier.colour = "grey",
+               outlier.shape = 1,
+               outlier.alpha = 0.1) +
+  geom_vline(xintercept = 3, color = "red", lty = 2) +
+  geom_vline(xintercept = 13, color = "red", lty = 2) +
+  geom_hline(yintercept = mean_div, color = "red", lty = 2) +
+  geom_text(data = df_labels, 
+            aes(x = x, y = y, label = label),
+            color = "red", 
+            size = 3, 
+            fontface="bold") +
+  viridis::scale_color_viridis(discrete = TRUE) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 0.85), 
+        legend.position = "NULL") +
+  labs(x = "", y = "Diversity", 
+       title = "Violin of diversity over time")
 ```
+
+
+To compare the changes over space, I visualized the spatial distribution of each biweekly period as shown below. It is obviously to see that the spatial patterns are quite different. For example, during Mar 25 to Apr 08, we can see the diversity has significantly decreased compared to the that during Mar 11 to Mar 25, especial in the central CBD area. In addition, the number of geographical places that has diversity value (i.e., hexagonal grid cells) became much smaller. This is because the lockdown has marked drastic alternations on people's daily movements, therefore, most of places showed a sharp drop of visiting frequency, or even no visitors at all. This again indicates the timely effect of lockdown mundane on human mobility. 
+
+Moreover, the diversity remained relatively low during the four biweekly periods after the 1st lockdown, and slowly increased on the 5th biweekly, as New Zealand started to move to Alert Level 1, which means the restrictions were released. We can see than the diversity slowly increase and the diversity returned to a comparable spatial pattern before the lockdown around July. Similar changes was observed for the 2nd lockdown, where the diversity delined immediately after the lockdown but not as significant as the first lockdown. The possible reasons could be that the 2nd lockdown was less strict than the 1st lockdown and people may be getting fatigue about it. 
+
+
+```{r fig.width=10, fig.height=10, cache=T}
+# mapping
+tm_shape(sf_akl) +
+      tm_borders(col = "grey") + 
+      tm_shape(highway_centrlines) +
+      tm_lines(col = "grey20", lwd = 2, alpha = 0.7) +
+      tm_shape(df_divs_combined) +
+      tm_fill("norm_div",
+              palette = "OrRd",
+              style = "fixed",
+              breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1.0),
+              legend.format = list(digits = 2),
+              title = "Norm.Diversity") +
+  tm_facets(by = "date_range", ncol = 5) +
+  tm_layout(legend.position = c(0.75, 0.8),
+            legend.outside = F)
+```
+
+
+## Interactive visualization 
+
+The interactive dashboard allows users to investigate underlying insights of specific metrics from data or from measured results. User can choose metrics that they are interested in and visualize results in different way. This is especially useful in this project as the interactive dashboard provides the flexibility to zoom in specific place in the city and examine the metrics (e.g., social diversity, standard deviation of diversity, travel distance of visitors) in that place. From this point of view, I created a interactive dashboard to help understand the outcomes. With the dashboard, you can easily to zoom in and zoom out, choose different bi-weekly period or specific location (grid cell ID). Different metrics are presented in different pages, but they are synchronous. In other words, the results of different metrics changes simultaneously with the selected date range or grid cell. The video below shows a simple demo of the dashboard. As the dashboard is built upon Shinny apps and it is running locally, so I don't provide codes here. 
+
+
+
+```{r echo=FALSE, out.width="100%"}
+embed_url("https://youtu.be/j0xTW_iTyFI")
+```
+
 
 # Conclusions
 
-<!-- [~200 words] -->
+In this project, I focused on comparing the changes in human mobility patterns under the COVID-19 impact, especially during the stringent lockdown periods. In order to compare the potential changes, I took a mobility indicator named diversity as a proxy of human footprints and conducted the analysis leveraging mobile location data. The results show the diversity significantly declined after the two lockdown mundane, indicating the strict measures put in place have timely effects on human footprints. This is expected as people were required to remain at home and only went out for essentials during the lockdown periods, therefore, results in significantly different diversity patterns in space and time. 
 
-<!-- Clear summary adequately describing the results and putting them in context. Discussion of further questions and ways to continue investigation. -->
+In addition, the results also show the diversity decreased less after the 2nd lockdown compared to that after the 1st lockdown. Moreover, the diversity showed a slow increase after the restrictions released. It would be interesting to compare the recovery rate of different lockdown. Another direction could be looking into places that have the largest diversity changes and combine other factors, such as socio-economics and demographic characteristics, to understand the underlying insights.  
+
 
 # References
-
-<!-- All sources are cited in a consistent manner -->
