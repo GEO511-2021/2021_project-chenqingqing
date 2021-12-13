@@ -14,8 +14,7 @@ bibliography: references.bib
 
 ## Import necessary packages
 ```{r, message=F, warning=F}
-knitr::opts_chunk$set(echo = TRUE, warning = F, message = F, cache=TRUE, 
-                      fig.width = 10, fig.height = 10)
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F, fig.width = 10, fig.height = 10)
 # library(tidyverse)
 library(dplyr)
 library(sf)
@@ -438,7 +437,7 @@ To compare the changes over space, I visualized the spatial distribution of each
 Moreover, the diversity remained relatively low during the four biweekly periods after the 1st lockdown, and slowly increased on the 5th biweekly, as New Zealand started to move to Alert Level 1, which means the restrictions were released. We can see than the diversity slowly increase and the diversity returned to a comparable spatial pattern before the lockdown around July. Similar changes was observed for the 2nd lockdown, where the diversity delined immediately after the lockdown but not as significant as the first lockdown. The possible reasons could be that the 2nd lockdown was less strict than the 1st lockdown and people may be getting fatigue about it. 
 
 
-```{r fig.width=10, fig.height=10, cache=T}
+```{r fig.width=10, fig.height=10}
 # mapping
 tm_shape(sf_akl) +
       tm_borders(col = "grey") + 
